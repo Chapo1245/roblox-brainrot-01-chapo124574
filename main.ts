@@ -1,10 +1,12 @@
-// A working roblox-brainrot-01 entry (Node 22, standard library only): the game is this directory's Rojo
-// project, built into game.rbxl with `rojo build default.project.json --output game.rbxl`, and the program
-// hands it in. It copies game.rbxl, src/, screenshots/ and PLAY.json from beside this file to /output and
-// writes /output/dossier.json, the summary the judge reads, with the vendored make.fun library. A starting
-// point, not a winner: it is a grey square that moves with the arrow keys. Build your game, rebuild
-// game.rbxl, put your PNG or JPEG screenshots in screenshots/ (the first by name is the cover, and one of
-// them is the thumbnail you upload for your game on Roblox) and fill in PLAY.json with your published place.
+// Brainrot Bodega — a working roblox-brainrot-01 entry (Node 22, standard library only): the game is
+// this directory's Rojo project, built into game.rbxl with `rojo build default.project.json --output game.rbxl`,
+// and the program hands it in. It copies game.rbxl, src/, screenshots/ and PLAY.json from beside this file
+// to /output and writes /output/dossier.json, the summary the judge reads, with the vendored make.fun
+// library. The game: 48 original food brainrots ride a conveyor through a 3D night market; players buy
+// them, park them on their base, and earn cash every second, while thieves, a health inspector and
+// runaway carts keep the market dangerous. Build your game, rebuild game.rbxl, put your PNG or JPEG
+// screenshots in screenshots/ (the first by name is the cover, and one of them is the thumbnail you
+// upload for your game on Roblox) and fill in PLAY.json with your published place.
 //
 // Every name under /output starts with a letter, a digit or _ and holds only letters, digits, . _ and -: the
 // grader fails an entry whose output holds any other, so a file such as .gitkeep or .DS_Store copied in fails it.
@@ -13,7 +15,7 @@
 // Outside the grader's container, MAKEFUN_OUTPUT_DIR stands in for /output:
 //   mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 
-import { copyFileSync, cpSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-roblox.ts';
@@ -24,11 +26,23 @@ const out = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 /** cpSync's filter: leave out every file and directory whose name starts with a dot (.gitkeep, .DS_Store, .git). */
 const notDotted = (path: string): boolean => !basename(path).startsWith('.');
 
+/** Fail fast with a readable message when a required build input is missing or empty. */
+const requireFile = (path: string, label: string): void => {
+  if (!existsSync(path)) throw new Error(`missing ${label}: ${path} (run rojo build first)`);
+  if (statSync(path).size === 0) throw new Error(`empty ${label}: ${path}`);
+};
+requireFile(join(here, 'game.rbxl'), 'game.rbxl');
+requireFile(join(here, 'PLAY.json'), 'PLAY.json');
+
 copyFileSync(join(here, 'game.rbxl'), join(out, 'game.rbxl'));
 copyFileSync(join(here, 'PLAY.json'), join(out, 'PLAY.json'));
 cpSync(join(here, 'src'), join(out, 'src'), { recursive: true, filter: notDotted });
 mkdirSync(join(out, 'screenshots'), { recursive: true });
 if (existsSync(join(here, 'screenshots'))) cpSync(join(here, 'screenshots'), join(out, 'screenshots'), { recursive: true, filter: notDotted });
+
+// Log what was handed in, so a bad build is visible before the grader sees it.
+const shots = existsSync(join(out, 'screenshots')) ? readdirSync(join(out, 'screenshots')).filter((f) => !f.startsWith('.')) : [];
+console.log(`game.rbxl ${statSync(join(out, 'game.rbxl')).size} bytes; screenshots: ${shots.map((f) => `${f} (${statSync(join(out, 'screenshots', f)).size} bytes)`).join(', ')}`);
 
 // The scorer's own caps (reference/gate.json): only text_max_bytes shapes the bytes; the others refuse an entry the
 // scorer would refuse (more than 4 screenshots or one over 256 KiB; a place of more than 500000 instances, whose
